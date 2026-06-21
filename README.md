@@ -233,7 +233,6 @@ Use these to test the workflow end-to-end without needing real donor data.
 
 ---
 
-## Team
-**[Your name]** — [Your role, e.g. "Solo developer" or list teammates]
+
 
 Built for **[HACKATHON NAME]**, [Month Year].
