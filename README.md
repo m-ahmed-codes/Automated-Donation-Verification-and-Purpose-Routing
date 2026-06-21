@@ -4,9 +4,9 @@
 
 An n8n-powered workflow that automates the donation verification bottleneck for high-volume nonprofits like Al-Khidmat: a donor sends a bank transfer screenshot over WhatsApp, an LLM extracts the transaction details, the system cross-checks it against the bank statement, captures the donation's purpose conversationally, and sends back an instant confirmation — replacing what used to be a fully manual, per-screenshot human review process.
 
-![Workflow Overview](./assets/workflow-screenshot.jpeg)
+![Workflow Overview](./assests/workflow-screenshot.jpeg)
 
-🎥 **Demo video:** [Watch here](./assets/demo.mp4) <!-- or paste a YouTube/Drive link -->
+🎥 **Demo video:** [Watch here](./assests/demo.mp4) <!-- or paste a YouTube/Drive link -->
 
 ---
 
