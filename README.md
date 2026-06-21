@@ -133,7 +133,7 @@ Donation logged + confirmation sent back on WhatsApp
 - An [OpenAI API key](https://platform.openai.com/api-keys) with GPT-4 Vision access
 - A [Meta Developer account](https://developers.facebook.com/) with a WhatsApp Business app set up (Cloud API) and a test phone number
 - A Google account (for Google Sheets as the data store)
-- [ngrok](https://ngrok.com/) (only if self-hosting n8n locally, to expose your webhook publicly so Meta can reach it)
+-
 
 ### 1. Clone the repository
 ```bash
@@ -167,9 +167,7 @@ Create a Google Sheet with **3 tabs**, matching the structure below (or copy the
 | donation_id | donor_phone | extracted_amount | extracted_date | extracted_time | extracted_bank | extracted_ref | status | purpose | project_assigned |
 |---|---|---|---|---|---|---|---|---|---|
 
-**Tab 3 — `ActiveProjects`**
-| project_id | project_name | keywords |
-|---|---|---|
+
 
 Populate `BankStatement` using the sample PDF in `sample-data/`, and `ActiveProjects` using `active-projects.csv`.
 
@@ -235,4 +233,4 @@ Use these to test the workflow end-to-end without needing real donor data.
 
 
 
-Built for **[HACKATHON NAME]**, [Month Year].
+Built for **[Build With Ai Hackathone -2026]**, [June 2026].
