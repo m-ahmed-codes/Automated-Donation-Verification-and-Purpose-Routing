@@ -1,0 +1,1466 @@
+{
+  "name": "Donation Verification from WhatsApp",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json[\"status \"]}}",
+              "rightValue": "verified",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": false
+        }
+      },
+      "id": "c251a00e-e9df-4333-9b9c-0ad489e9df66",
+      "name": "Check Match Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2128,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 🎯 AI Donation Verification System\n\n**Flow Overview:**\n1. Receive WhatsApp screenshot via webhook\n2. Extract transaction data using GPT-4o Vision\n3. Match with bank statements in Supabase\n4. Verify or flag for review\n5. Classify donation purpose using AI\n6. Send confirmation via OpenWA\n\n**Key Features:**\n- OCR with error handling\n- Dual-path verification\n- AI-powered classification\n- Real-time WhatsApp responses",
+        "height": 200,
+        "width": 960,
+        "color": 2
+      },
+      "id": "d74cc95c-571f-4c66-a07a-39b52c7b7c3d",
+      "name": "Sticky Note d3ac171d",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ✅ PATH A: VERIFIED DONATION\n\nWhen transaction matches bank statement:\n1. Update status to \"Verified\"\n2. Ask donor for purpose (Urdu)\n3. Classify using AI\n4. Create donation record\n5. Send receipt confirmation",
+        "height": 200,
+        "width": 1172,
+        "color": 3
+      },
+      "id": "f044da00-f4cf-47ed-9823-af7040b575a6",
+      "name": "Sticky Note ed7a77a2",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1376,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ⏳ PATH B: PENDING REVIEW\n\nWhen no match found:\n1. Create pending record\n2. Notify donor of manual review\n3. Flag for coordinator dashboard",
+        "height": 200,
+        "width": 520,
+        "color": 4
+      },
+      "id": "ded0c2db-8a76-4642-b556-f6f8d01c7131",
+      "name": "Sticky Note 5e41dfc5",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2800,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# ❌ PATH C: OCR FAILED\n\nWhen screenshot is unclear:\n1. Log failure with image\n2. Ask donor to resend clear screenshot\n3. Track for quality metrics",
+        "height": 200,
+        "width": 520,
+        "color": 5
+      },
+      "id": "3a18321b-dbe1-474c-9b1e-f9504c89c2e1",
+      "name": "Sticky Note e2b9032b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# 🚨 Text Msg HANDLING\n\n",
+        "height": 200,
+        "width": 740,
+        "color": 6
+      },
+      "id": "98991f0a-4e85-47e2-ab2b-4630de5f266d",
+      "name": "Sticky Note 10bfe75b",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        640,
+        960
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "donation-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c622b322-88ed-4100-ba56-ce39c8ca9a6d",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        400
+      ],
+      "webhookId": "donation-webhook-001"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "text": "You are an expert OCR and data-extraction assistant specialized in Pakistani banking app screenshots (HBL, Meezan, UBL, JazzCash, EasyPaisa, Allied Bank, Bank Alfalah, and similar). \n\nThe image may be rotated, cropped, blurry, low-resolution, or a screenshot of a screenshot. Text may be in English, Urdu script, or Roman Urdu. Treat this as a careful visual inspection task, not a quick read — examine the entire image area including corners, headers, footers, and any partially cut-off text before concluding a field is missing.\n\nLook for these visual cues to locate each field:\n- bank_name: app logo, header banner, color scheme, or any bank name text/letterhead anywhere in the image\n- amount: usually the largest/boldest number on screen, often prefixed with \"Rs\", \"PKR\", \"₨\", or shown near words like \"Amount\", \"Mablagh\", \"raqam\"\n- transaction_date: may appear as DD/MM/YYYY, DD-MM-YY, or written month names; check near the top, bottom, or next to \"Date\"/\"Tareekh\"\n- transaction_time: often near the date, in 12hr or 24hr format, sometimes with AM/PM\n- sender_name: look for \"From\", \"Sender\", \"Account Title\", \"Bhejne wala\", or a name field near the top of a receipt\n- reference_number: look for \"Ref No\", \"Transaction ID\", \"TXN ID\", \"STAN\", \"Trace No\", or any long numeric/alphanumeric string distinct from the amount\n\nExtraction rules:\n1. If a field is partially visible, smudged, or you are not fully certain, still provide your BEST GUESS rather than null. Reflect your uncertainty through the confidence field, not by omitting data.\n2. Only set a field to null if there is genuinely no trace of that information anywhere in the image — not even a partial digit, partial word, or cropped edge.\n3. If the image is rotated, mentally rotate it before reading.\n4. Normalize amounts to plain numbers without commas or currency symbols (e.g. 35,000 -> 35000).\n5. Normalize transaction_date to YYYY-MM-DD if a year is visible; if only day/month is visible, still return it in YYYY-MM-DD form using your best inference of the year from context (e.g. visible timestamps, \"today\" indicators), or null only if no date fragment exists at all.\n6. Normalize transaction_time to 24-hour HH:MM.\n7. confidence should reflect your OVERALL extraction certainty:\n   - \"high\": all or nearly all fields clearly read\n   - \"medium\": most fields read, 1-2 uncertain or guessed\n   - \"low\": fewer than half the fields could be read or guessed with any visual basis\n\nReturn ONLY valid JSON in this exact structure, no markdown formatting, no code fences, no explanation text before or after:\n\n{\n  \"bank_name\": string or null,\n  \"amount\": number or null,\n  \"transaction_date\": \"YYYY-MM-DD\" or null,\n  \"transaction_time\": \"HH:MM\" or null,\n  \"sender_name\": string or null,\n  \"reference_number\": string or null,\n  \"confidence\": \"high\" | \"medium\" | \"low\"\n}\n\n",
+        "inputType": "base64",
+        "options": {
+          "detail": "high",
+          "maxTokens": 500
+        }
+      },
+      "id": "53d38599-3239-431e-8990-991d5cda48ac",
+      "name": "Extract Transaction Data (OCR)",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        688,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "wXdpiCIPfDJU2olk",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// const webhookData = $('WhatsApp Webhook').item.json.body;\n// const ocrResponse = $input.first().json.message.content;\n\n// let extracted;\n// try {\n//   extracted = JSON.parse(ocrResponse);\n// } catch (e) {\n//   const jsonMatch = ocrResponse.match(/\\{[\\s\\S]*\\}/);\n//   if (jsonMatch) {\n//     extracted = JSON.parse(jsonMatch[0]);\n//   } else {\n//     throw new Error(\"Failed to parse OCR response: \" + ocrResponse);\n//   }\n// }\n\n// // Validate extracted data\n// const hasUnclear = Object.values(extracted).some(v => v === 'UNCLEAR');\n// const amount = parseFloat(extracted.amount);\n// const isValidAmount = !isNaN(amount) && amount > 0;\n\n// return [{\n//   json: {\n//     sender: webhookData.sender,\n//     amount: isValidAmount ? amount : null,\n//     referenceId: extracted.referenceId !== 'UNCLEAR' ? extracted.referenceId : null,\n//     bankName: extracted.bankName !== 'UNCLEAR' ? extracted.bankName : null,\n//     date: extracted.date !== 'UNCLEAR' ? extracted.date : null,\n//     imageBase64: webhookData.image,\n//     hasUnclearFields: hasUnclear,\n//     ocrRawResponse: ocrResponse,\n//     timestamp: new Date().toISOString()\n//   }\n// }];\n\n// 1. Access the nested array data safely\nconst outerArray = $input.first().json; \nconst innerBlocks = outerArray[0]; // This gets the array containing reasoning and message\n\n// 2. Find the object where type is \"message\"\nconst messageBlock = outerArray.find(block => block.type === \"message\");\n\nif (!messageBlock || !messageBlock.content || messageBlock.content.length === 0) {\n  throw new Error(\"Could not find the 'message' block or content inside the payload.\");\n}\n\n// 3. Extract the raw string from the output_text object\nlet rawText = messageBlock.content[0].text;\nconst today = new Date();\nconst year = today.getFullYear();\nconst month = String(today.getMonth() + 1).padStart(2, '0');\nconst day = String(today.getDate()).padStart(2, '0');\nconst dateStamp = `${year}${month}${day}`; // E.g., \"20260617\"\n\n// Generate a random 4-character alphanumeric suffix to prevent any chance of collisions\nconst randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase(); \nconst donationId = `DON-${dateStamp}-${randomSuffix}`;\n\n// 4. Clean up any markdown code blocks if they exist\nif (rawText.includes(\"```\")) {\n  rawText = rawText.replace(/```json|```/gi, \"\").trim();\n}\n\n// 5. Parse it into an active JSON object for n8n\ntry {\n  const extracted = JSON.parse(rawText);\n  extracted.donation_id = donationId;\n  extracted.donor_phone = $('WhatsApp Webhook').first().json.body.From;\n  extracted.timestamp_received = $now;\n \n  return { json: extracted };\n} catch (e) {\n  // Safe fallback map so the n8n flow doesn't break on a formatting bug\n  return {\n    json: {\n      donation_id: donationId,\n      bank_name: null,\n      amount: null,\n      donor_phone_no:null,\n      timestamp_received:null,\n      transaction_date: null,\n      transaction_time: null,\n      sender_name: null,\n      reference_number: null,\n      confidence: \"low\",\n      error: \"Failed to parse inner text JSON string\",\n      raw_text: rawText\n    }\n  };\n}\n"
+      },
+      "id": "9a0c571c-1690-43ff-8b9a-189724b0cced",
+      "name": "Parse OCR Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        912,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.reference_number }}",
+              "rightValue": "null",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": "",
+              "operator": {
+                "type": "any",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "id": "63f66617-34db-432a-a189-ce9197b1d3f1",
+              "leftValue": "={{ $json.amount }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "57c24e1f-27e3-486a-9606-0d952a3146e1",
+      "name": "Check OCR Quality",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1136,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.MediaUrl0 }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "twilioApi",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        464,
+        416
+      ],
+      "id": "1ce98c0c-e09d-413f-a1d1-efbe92f95ff2",
+      "name": "HTTP Request",
+      "alwaysOutputData": false,
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "donor_phone ": "={{ $json.donor_phone }}",
+            "donation_id ": "={{ $json.donation_id }}",
+            "timestamp_received ": "={{ $json.timestamp_received }}",
+            "amount": "={{ $json.amount }}",
+            "bank_name": "={{ $json.bank_name }}",
+            "transaction_date": "={{ $json.transaction_date }}",
+            "transaction_time": "={{ $json.transaction_time }}",
+            "sender_name": "={{ $json.sender_name }}",
+            "reference_number": "={{ $json.reference_number }}",
+            "confidence": "={{ $json.confidence }}",
+            "status ": "Processing"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "donation_id ",
+              "displayName": "donation_id ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "donor_phone ",
+              "displayName": "donor_phone ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_received ",
+              "displayName": "timestamp_received ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bank_name",
+              "displayName": "bank_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_date",
+              "displayName": "transaction_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_time",
+              "displayName": "transaction_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender_name",
+              "displayName": "sender_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reference_number",
+              "displayName": "reference_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status ",
+              "displayName": "status ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose ",
+              "displayName": "purpose ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "receipt_sent ",
+              "displayName": "receipt_sent ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1312,
+        224
+      ],
+      "id": "2569dfa9-ca3b-4a37-a4ac-79b53a2355e4",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dozqLjmxe0dbNX2J",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1djLhW_SPaTc8m7_LpXROvTPCjl9xxHqwxsb-AfKaFbk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1463349542,
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1djLhW_SPaTc8m7_LpXROvTPCjl9xxHqwxsb-AfKaFbk/edit#gid=1463349542"
+        },
+        "combineFilters": "OR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1520,
+        224
+      ],
+      "id": "6128ab8b-4aff-41be-9330-3bf927debac2",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dozqLjmxe0dbNX2J",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Fetch the real bank statement rows coming directly from the Google Sheets node\nconst statementRows = $input.all().map((item) => item.json);\n\n// 2. Pull the extracted screenshot details from your Clean Gemini Node\nconst extracted = $(\"Parse OCR Response\").first().json;\n\n// // 5. Package final response for downstream routing\n// return {\n//   json: {\n//      statementRows:statementRows\n//   }\n// };\n\nlet status = \"flagged\"; // Default status\nlet matchedRow = null;\n\n// --- Helper: Convert \"11-Mar-26\" (or similar) to \"YYYY-MM-DD\" ---\nfunction normalizeStatementDate(dateStr) {\n  if (!dateStr) return null;\n\n  // Clean potential spaces\n  const cleanStr = dateStr.trim();\n  const parts = cleanStr.split(\"-\");\n  if (parts.length !== 3) return cleanStr; // Return as-is if format is unexpected\n\n  const day = parts[0].padStart(2, \"0\");\n  const monthAbbr = parts[1].toLowerCase();\n  let year = parts[2];\n\n  // Map English month abbreviations\n  const months = {\n    jan: \"01\",\n    feb: \"02\",\n    mar: \"03\",\n    apr: \"04\",\n    may: \"05\",\n    jun: \"06\",\n    jul: \"07\",\n    aug: \"08\",\n    sep: \"09\",\n    oct: \"10\",\n    nov: \"11\",\n    dec: \"12\",\n  };\n\n  const month = months[monthAbbr] || \"01\";\n\n  // Turn 2-digit years (e.g. \"26\") into 4-digit years (e.g. \"2026\")\n  if (year.length === 2) {\n    year = \"20\" + year;\n  }\n\n  return `${year}-${month}-${day}`;\n}\n\n// --- Helper: Clean Amount formatting (converts \"10,000\" to 10000) ---\nfunction cleanAmount(val) {\n  if (val === undefined || val === null) return 0;\n  // Strip commas, spaces and convert to a clean float\n  return parseFloat(String(val).replace(/,/g, \"\").trim()) || 0;\n}\n\n// --- Helper: Check if name parts match inside detail string ---\nfunction matchesSenderName(detailText, extractedName) {\n  if (!detailText || !extractedName) return false;\n\n  const detailLower = detailText.toLowerCase();\n  const nameLower = extractedName.toLowerCase();\n\n  // 1. Try a direct match first\n  if (detailLower.includes(nameLower)) return true;\n\n  // 2. Fallback: Check if individual name parts (e.g., \"AQEEL\" and \"TANVEER\") exist to handle middle names/omissions\n  const nameParts = nameLower.split(/\\s+/).filter((part) => part.length > 2); // only use names longer than 2 chars\n  if (nameParts.length === 0) return false;\n\n  // If at least two major name parts are found in the statement row, mark it as matching\n  const matchCount = nameParts.filter((part) =>\n    detailLower.includes(part),\n  ).length;\n  return matchCount >= Math.min(nameParts.length, 2);\n}\n\n// 3. Loop through your live bank statement rows to find a match\nfor (const row of statementRows) {\n  // We check for dynamic property names because Google Sheets header imports vary\n  const detailText = row[\"Transaction Details\"] || \"\";\n\n  const rowDate = normalizeStatementDate(row.date);\n  const extDate = extracted.transaction_date; // YYYY-MM-DD from Gemini\n\n  // Match 1: Do the amounts match exactly?\n  const amountMatch =\n    Math.abs(cleanAmount(row[\"Amount\"]) - cleanAmount(extracted.amount)) < 1;\n\n  // Match 2: Does the date match exactly?\n  const dateMatch = rowDate === extDate;\n\n  // Match 3: Is the reference number located anywhere inside the transaction details?\n\n  const refMatch =\n    extracted.reference_number &&\n    detailText\n      .replace(/[^a-zA-Z0-9]/g, \"\")\n      .includes(extracted.reference_number.replace(/[^a-zA-Z0-9]/g, \"\"));\n\n  // Match 4: Does the sender's name match?\n  // const nameMatch = matchesSenderName(detailText, extracted.sender_name);\n\n  const nameMatch = matchesSenderName(detailText, extracted.sender_name);\n\n  // Check if this row was already matched previously\n  const isAlreadyMatched = String(row.matched).toLowerCase() === \"true\";\n\n  // VERIFIED RULES:\n  // Date and Amount must align.\n  // Additionally, either the Reference ID must exist in the string OR the Sender's Name must match!\n  if (amountMatch && (refMatch || nameMatch)) {\n    status = \"verified\";\n    matchedRow = row;\n\n    // return {\n    //   json: {\n    //    amountMatch:amountMatch,\n    //     refMatch:refMatch,\n    //     nameMatch:nameMatch,\n    //     matchedRow:matchedRow\n        \n        \n    //   },\n    // };\n\n    break;\n  }\n}\n\n// 4. Fallback Logic for Pending vs Flagged\nif (status !== \"verified\") {\n  const targetAmount = cleanAmount(extracted.amount);\n  const amountExistsAnywhere = statementRows.some(\n    (row) => Math.abs(cleanAmount(row.amount) - targetAmount) < 1,\n  );\n\n  if (!amountExistsAnywhere) {\n    status = \"pending\"; // valid amount/data structure, but statement hasn't arrived/updated yet\n  } else {\n    status = \"flagged\"; // amount exists in statement, but details (date, name, reference) do not match\n  }\n}\n\n// 5. Package final response for downstream routing\nreturn {\n  json: {\n    donation_id: extracted.donation_id,\n    donor_phone: extracted.donor_phone,\n    extracted_amount: cleanAmount(extracted.amount),\n    extracted_ref: extracted.reference_number,\n    status: status,\n    matched_details: matchedRow\n      ? matchedRow['Transaction Details']\n      : null,\n    matched_row_index: matchedRow ? matchedRow['row_number'] : null,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1728,
+        224
+      ],
+      "id": "99dc95b7-b3d1-4ef2-82e6-51963c9fce60",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "donation_id ": "={{ $json.donation_id }}",
+            "status ": "verified",
+            "purpose_awaiting": "true"
+          },
+          "matchingColumns": [
+            "donation_id "
+          ],
+          "schema": [
+            {
+              "id": "donation_id ",
+              "displayName": "donation_id ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "donor_phone ",
+              "displayName": "donor_phone ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_received ",
+              "displayName": "timestamp_received ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bank_name",
+              "displayName": "bank_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_date",
+              "displayName": "transaction_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_time",
+              "displayName": "transaction_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender_name",
+              "displayName": "sender_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reference_number",
+              "displayName": "reference_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status ",
+              "displayName": "status ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose ",
+              "displayName": "purpose ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "receipt_sent ",
+              "displayName": "receipt_sent ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose_awaiting",
+              "displayName": "purpose_awaiting",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1952,
+        224
+      ],
+      "id": "c11a8cbc-34fe-41da-b91c-494104bd236a",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dozqLjmxe0dbNX2J",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "6c5162e2-51d2-414f-a353-ce7386ef266e",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "pending",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        2160,
+        496
+      ],
+      "id": "5bd27db9-4c1a-43b9-8aec-4b91b72c198a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.to }}",
+        "to": "={{ $json.from }}",
+        "toWhatsapp": true,
+        "message": "Shukriya! Your donation has been verified ✅.   What would you like this donation to go towards?  1. Gaza Appeal 2. Ration Drive 3. Orphan Sponsorship 4. Ambulance Fund 5. General (Where needed most)",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2608,
+        224
+      ],
+      "id": "e65e3b5b-6338-4a35-9a19-246d1881e0a3",
+      "name": "Send an SMS/MMS/WhatsApp message",
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c6ae9f55-6020-40b7-98d1-63b458d473e6",
+              "leftValue": "={{ $json.body.MessageType }}",
+              "rightValue": "image",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        208,
+        432
+      ],
+      "id": "4e28eb6e-0065-4d4a-956f-d75c36f5fbcf",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst rawPhone1 = $('WhatsApp Webhook').first().json.body.To;\nconst cleanPhone1WithPlus = rawPhone1.replace(\"whatsapp:\", \"\").trim(); \n\nconst rawPhone2 = $('WhatsApp Webhook').first().json.body.From;\nconst cleanPhone2WithPlus = rawPhone2.replace(\"whatsapp:\", \"\").trim(); \n\n\n\nreturn {\n  json:{\n    to: cleanPhone1WithPlus,\n    from : cleanPhone2WithPlus,\n\n  \n}};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        224
+      ],
+      "id": "cf78a727-ec43-4ebc-b245-689dc14fd618",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-5-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=The donor has replied with this message: \"{{ $json.donor_message }}\"\n\nYour task is to classify this message into EXACTLY ONE of the active project IDs below.\n\n### Active Projects List:\n1. gaza_appeal - Gaza Emergency Appeal\n   - Keywords/Context: Gaza, Palestine, Falasteen, borders, emergency relief, war zone.\n2. ration_drive - Monthly Ration Drive\n   - Keywords/Context: Ration, food package, grocery, khana, rashan, monthly food box, aata, daal.\n3. orphan_sponsorship - Orphan Sponsorship Program\n   - Keywords/Program: Orphan, yateem, child support, adopt a child, orphan care.\n4. ambulance_fund - Ambulance Fund\n   - Keywords/Context: Ambulance, medical transport, emergency vehicle, sasti ambulance, medical rescue.\n5. general - General / Wherever Needed Most\n   - Keywords/Context: General, anywhere, jahan zarurat ho, as you wish, apka marzi, na-maloom, general fund.\n\n### Language Context:\nThe donor may write in English, Urdu (Arabic script), or Roman Urdu (Urdu written in English alphabets like \"Gaza ke liye\", \"yateem bacha\", \"rashan box\", \"khana\", \"1\", \"pehla option\").\n\n### Output Instructions:\nReturn ONLY a valid, raw JSON object matching the schema below. Do not wrap the response in markdown code blocks (e.g. do NOT use ```json ... ```). Do not include any conversational filler, explanations, or leading spaces.\n\n### Target JSON Schema:\n{\n  \"project_id\": \"gaza_appeal\" | \"ration_drive\" | \"orphan_sponsorship\" | \"ambulance_fund\" | \"general\",\n  \"confidence\": \"high\" | \"medium\" | \"low\"\n}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 500
+        }
+      },
+      "id": "34664909-57ae-415b-a63e-ea5bed7bee36",
+      "name": "LLM model chatting",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        720
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "wXdpiCIPfDJU2olk",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk/edit#gid=0"
+        },
+        "combineFilters": "OR",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        656
+      ],
+      "id": "89aca656-3e9f-48a2-bb7b-db816b7c0fab",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dozqLjmxe0dbNX2J",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all database rows from Google Sheets\nconst allLogs = $input.all().map(item => item.json);\n\n// Pull incoming message details from the main Webhook (using body parser)\nconst incomingPhoneRaw = $('WhatsApp Webhook').first().json.body.From; // \"whatsapp:+923144493578\"\nconst incomingMessage = $('WhatsApp Webhook').first().json.body.Body;\n\n// Find if there is an active row for this phone number awaiting a response\nconst activeSession = allLogs.find(row => {\n  // Normalize both sides by stripping \"whatsapp:\" prefix for a flawless match\n  const cleanRowPhone = String(row['donor_phone '] || '').replace('whatsapp:', '').trim();\n  \n  const cleanIncomingPhone = String(incomingPhoneRaw || '').replace('whatsapp:', '').trim();\n  \n  \n  return  cleanRowPhone === cleanIncomingPhone && \n    (String(row.purpose_awaiting).toUpperCase() === 'TRUE');\n\n  \n  \n});\n\n// const data = activeSession;\n\nreturn {\n  json: {\n    has_active_session:!!activeSession ,\n    donor_phone: incomingPhoneRaw, // Keeps original prefix for Twilio responses\n    donor_message: incomingMessage,\n    data: activeSession,\n    donation_id: activeSession ? activeSession['donation_id '] : null,\n    rowNumber: activeSession ? activeSession.row_number : null\n  }\n};\n// return allLogs.map(row => {\n//   const cleanRowPhone = String(row['donor_phone '] || '').replace('whatsapp:', '').trim();\n  \n//   const cleanIncomingPhone = String(incomingPhoneRaw || '').replace('whatsapp:', '').trim();\n\n//  const hello = cleanRowPhone === cleanIncomingPhone && \n//     (String(row.purpose_awaiting).toUpperCase() === 'TRUE');\n  \n//   return {\n//     json: {\n//       cleanRowPhone: cleanRowPhone,\n//       cleanIncomingPhone: cleanIncomingPhone,\n//       hello:hello\n//     }\n//   };\n// });\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        672
+      ],
+      "id": "7e99ee79-df5d-48ef-9867-72177bc9472f",
+      "name": "Code in JavaScript2"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1mgba8pUzoGwyD7MSxlmFx9snGKGk7een8ObQ7f9h7kk/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "donation_id ": "={{$('Code in JavaScript2').item.json.donation_id }}",
+            "status ": "verified",
+            "purpose_awaiting": "false",
+            "purpose ": "={{ $json.project_id }}"
+          },
+          "matchingColumns": [
+            "donation_id "
+          ],
+          "schema": [
+            {
+              "id": "donation_id ",
+              "displayName": "donation_id ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "donor_phone ",
+              "displayName": "donor_phone ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "timestamp_received ",
+              "displayName": "timestamp_received ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "amount",
+              "displayName": "amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "bank_name",
+              "displayName": "bank_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_date",
+              "displayName": "transaction_date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "transaction_time",
+              "displayName": "transaction_time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sender_name",
+              "displayName": "sender_name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reference_number",
+              "displayName": "reference_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status ",
+              "displayName": "status ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose ",
+              "displayName": "purpose ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "receipt_sent ",
+              "displayName": "receipt_sent ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "purpose_awaiting",
+              "displayName": "purpose_awaiting",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1520,
+        848
+      ],
+      "id": "95afbede-fcd4-444f-bd9c-c10229873b08",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "dozqLjmxe0dbNX2J",
+          "name": "Google Sheets OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1. Unpack the outer array and access the \"output\" block safely\nconst itemJson = $input.first().json;\nconst outputArray = itemJson.output;\n\nif (!outputArray || outputArray.length === 0) {\n  throw new Error(\"Could not find the 'output' array inside the payload.\");\n}\n\n// 2. Locate the object where type equals \"message\"\nconst messageBlock = outputArray.find(block => block.type === \"message\");\n\nif (!messageBlock || !messageBlock.content || messageBlock.content.length === 0) {\n  throw new Error(\"Could not find the 'message' block or content inside the output array.\");\n}\n\n// 3. Extract the raw string from the output_text object\nlet rawText = messageBlock.content[0].text;\n\n// 4. Strip out any accidental markdown syntax if present\nif (rawText.includes(\"```\")) {\n  rawText = rawText.replace(/```json|```/gi, \"\").trim();\n}\n\n// 5. Parse it into an active JSON object for n8n's downstream steps\ntry {\n  const extracted = JSON.parse(rawText);\n  return { json: extracted };\n} catch (e) {\n  // Safe fallback if parsing fails so the workflow doesn't completely break\n  return {\n    json: {\n      project_id: \"general\",\n      confidence: \"low\",\n      error: \"Failed to parse classification text\",\n      raw_text: rawText\n    }\n  };\n}"
+      },
+      "id": "fe6c111c-bd50-49fb-9142-4f3ec55f99a6",
+      "name": "Parse OCR Response1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1264,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $('Code in JavaScript2').first().json.data;\n\n// Format dates nicely for the receipt printout\nconst printDate = new Date($('Code in JavaScript2').first().json.data['timestamp_received ']).toLocaleDateString('en-US', {\n  year: 'numeric', month: 'long', day: 'numeric'\n});\n\nconst htmlContent = `\n<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"utf-8\">\n    <style>\n        body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #333; margin: 0; padding: 40px; line-height: 1.4; }\n        .receipt-box { max-width: 600px; margin: auto; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05); padding: 30px; border-radius: 8px; }\n        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #2ecc71; padding-bottom: 20px; margin-bottom: 30px; }\n        .logo-title { color: #2ecc71; font-size: 24px; font-weight: bold; text-transform: uppercase; margin: 0; }\n        .receipt-id { font-size: 12px; color: #777; text-align: right; }\n        .details-table { width: 100%; border-collapse: collapse; margin-top: 20px; margin-bottom: 30px; }\n        .details-table td { padding: 12px 0; border-bottom: 1px solid #f4f4f4; }\n        .details-table td.label { font-weight: bold; color: #555; width: 40%; }\n        .details-table td.value { text-align: right; color: #222; }\n        .total-row { background: #f9f9f9; font-size: 18px; font-weight: bold; color: #2ecc71; }\n        .total-row td { padding: 15px 10px; border-bottom: none; }\n        .footer { text-align: center; margin-top: 40px; font-size: 12px; color: #999; border-top: 1px solid #eee; padding-top: 20px; }\n    </style>\n</head>\n<body>\n    <div class=\"receipt-box\">\n        <div class=\"header\">\n            <div>\n                <p class=\"logo-title\">Donation Receipt</p>\n                <small>Al Khidmat Welfare Trust</small>\n            </div>\n            <div class=\"receipt-id\">\n                <strong>Receipt ID:</strong> ${data['donation_id ']}<br>\n                <strong>Date:</strong> ${printDate}\n            </div>\n        </div>\n\n        <p>Dear Donor, thank you for your generous contribution. Your funds have been securely verified and disbursed.</p>\n\n        <table class=\"details-table\">\n            <tr>\n                <td class=\"label\">Donor Phone</td>\n                <td class=\"value\">${data['donor_phone ']}</td>\n            </tr>\n            <tr>\n                <td class=\"label\">Payment Source</td>\n                <td class=\"value\">${data.bank_name || 'Bank Transfer'}</td>\n            </tr>\n            <tr>\n                <td class=\"label\">Transaction Reference</td>\n                <td class=\"value\">#${data.reference_number || 'N/A'}</td>\n            </tr>\n            <tr>\n                <td class=\"label\">Allocated Campaign</td>\n                <td class=\"value\" style=\"text-transform: capitalize;\">${String($input.first().json[\"purpose \"] || 'General').replace('_', ' ')}</td>\n            </tr>\n            <tr class=\"total-row\">\n                <td class=\"label\" style=\"padding-left: 10px; color: #2ecc71;\">Amount Received</td>\n                <td class=\"value\" style=\"padding-right: 10px;\">PKR ${Number(data.amount).toLocaleString()}</td>\n            </tr>\n        </table>\n\n        <div class=\"footer\">\n            <p>This is a system-generated electronic document. No signature required.</p>\n            <p>JazakAllah Khair for making a difference!</p>\n        </div>\n    </div>\n</body>\n</html>\n`;\n\nreturn {\n  json: {\n    html: htmlContent,\n    donation_id: data.donation_id\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        864
+      ],
+      "id": "c130ea64-066a-408f-9f3a-66d3b90bbd7c",
+      "name": "Code in JavaScript4"
+    },
+    {
+      "parameters": {
+        "html_content": "={{ $json.html }}"
+      },
+      "type": "n8n-nodes-htmlcsstopdf.htmlcsstopdf",
+      "typeVersion": 1,
+      "position": [
+        2064,
+        864
+      ],
+      "id": "35e0c343-f166-4f0e-8535-eb447759437b",
+      "name": "Convert HTML to PDF",
+      "credentials": {
+        "htmlcsstopdfApi": {
+          "id": "rM1jvP5a9axboVA6",
+          "name": "HTML to PDF account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.to }}",
+        "to": "={{ $json.from }}",
+        "toWhatsapp": true,
+        "message": "=Receipt : {{ $('Convert HTML to PDF').item.json.pdf_url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2544,
+        896
+      ],
+      "id": "bdbf96aa-b6c8-4dc4-93cc-1ac10b616fb1",
+      "name": "Send an SMS/MMS/WhatsApp message1",
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst rawPhone1 = $('If1').first().json.body.To;\nconst cleanPhone1WithPlus = rawPhone1.replace(\"whatsapp:\", \"\").trim(); \n\nconst rawPhone2 = $('If1').first().json.body.From;\nconst cleanPhone2WithPlus = rawPhone2.replace(\"whatsapp:\", \"\").trim(); \n\n\n\nreturn {\n  json:{\n    to: cleanPhone1WithPlus,\n    from : cleanPhone2WithPlus,\n\n  \n}};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2288,
+        912
+      ],
+      "id": "184080e7-ac31-4d79-a9ed-b62c7e523e0e",
+      "name": "Code in JavaScript5"
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.to }}",
+        "to": "={{ $json.from }}",
+        "toWhatsapp": true,
+        "message": "=Your Screenshot is not clear enough or the information does not match  ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2128,
+        656
+      ],
+      "id": "c0a3408f-139f-4786-9eea-65accd1335c6",
+      "name": "Send an SMS/MMS/WhatsApp message2",
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nconst rawPhone1 = $('If1').first().json.body.To;\nconst cleanPhone1WithPlus = rawPhone1.replace(\"whatsapp:\", \"\").trim(); \n\nconst rawPhone2 = $('If1').first().json.body.From;\nconst cleanPhone2WithPlus = rawPhone2.replace(\"whatsapp:\", \"\").trim(); \n\n\n\nreturn {\n  json:{\n    to: cleanPhone1WithPlus,\n    from : cleanPhone2WithPlus,\n\n  \n}};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        448
+      ],
+      "id": "0bd3e7fe-e9d7-4bf6-9ac1-de3270019406",
+      "name": "Code in JavaScript6"
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.to }}",
+        "to": "={{ $json.from }}",
+        "toWhatsapp": true,
+        "message": "=Your Transaction is pending ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2640,
+        480
+      ],
+      "id": "52cfea9f-f7a0-46f8-aab6-98501bfc53d4",
+      "name": "Send an SMS/MMS/WhatsApp message3",
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "={{ $json.to }}",
+        "to": "={{ $json.from }}",
+        "toWhatsapp": true,
+        "message": "=Your donation will checked by the finance deptartment ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [
+        2560,
+        704
+      ],
+      "id": "f6ea5bae-95de-43d8-adc8-4887f348ffcd",
+      "name": "Send an SMS/MMS/WhatsApp message4",
+      "credentials": {
+        "twilioApi": {
+          "id": "sHpAlQ2iuE82Q7RR",
+          "name": "Twilio account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Match Found": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WhatsApp Webhook": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Transaction Data (OCR)": {
+      "main": [
+        [
+          {
+            "node": "Parse OCR Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OCR Response": {
+      "main": [
+        [
+          {
+            "node": "Check OCR Quality",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check OCR Quality": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code in JavaScript6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Extract Transaction Data (OCR)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Check Match Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript2": {
+      "main": [
+        [
+          {
+            "node": "LLM model chatting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM model chatting": {
+      "main": [
+        [
+          {
+            "node": "Parse OCR Response1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OCR Response1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript4": {
+      "main": [
+        [
+          {
+            "node": "Convert HTML to PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert HTML to PDF": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript5": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript6": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "683c69d2-0120-4b23-8c43-15211754ece0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "29c024916ae2dde3fc28bf2710dda54fd20b4faafefdd7e8934e6f3408e092da"
+  },
+  "nodeGroups": [],
+  "id": "QqBhTNW0MJdRGF9C",
+  "tags": []
+}
